@@ -8,7 +8,6 @@ if __name__ == "__main__":
     mp_drawing_styles = mp.solutions.drawing_styles
     mp_pose = mp.solutions.pose
 
-
     # For static images:
     IMAGE_FILES = []
     BG_COLOR = (192, 192, 192)  # gray

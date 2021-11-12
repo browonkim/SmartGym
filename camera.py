@@ -1,66 +1,27 @@
 from multiprocessing import shared_memory, Semaphore
-
 import cv2
 import numpy as np
 import ENVIRONMENT
-import time
-import mediapipe as mp
-
-
-class BoundingBox:
-    def __init__(self, box: list):
-        self.x1, self.y1, self.width, self.height = box[0], box[1], box[2], box[3]
-        self.x2, self.y2 = (self.x1 + self.width), (self.y1 + self.height)
-
-    def __str__(self):
-        return "LeftTop = " + str((self.x1, self.y1)) + "RightDown = " + str((self.x2, self.y2))
-
-
-def check_available(human_box: BoundingBox, machine_box: BoundingBox):
-    x, x2, y, y2 = human_box.x1, human_box.x2, human_box.y1, human_box.y2
-    tx, ty, th, tw = machine_box.x1, machine_box.y1, machine_box.height, machine_box.width
-    if x > x2:
-        x, x2 = x2, x
-    if y > y2:
-        y, y2 = y2, y
-    if x < tx + tw and x2 > tx and y < ty + th and y2 > ty:
-        a = max(x, tx)
-        b = max(y, ty)
-        a2 = min(x2, tx + tw)
-        b2 = min(y2, ty + th)
-        area = (a2 - a) * (b2 - b)
-        if area > tw * th / 2:
-            return True
-        else:
-            return False
-    else:
-        return False
-
+from check_available import check_available, BoundingBox
+from get_machine_position import get_machine_position
 
 def get_bounding_box_of_human(camera_num: int, process_title: str = None, shared: str = None,
                               shape=None, datatype=None, sem: Semaphore = None):
-    cap = cv2.VideoCapture(camera_num)
-    yolo_net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
+    # 기구의 위치 설정하는 모듈
+    roi = get_machine_position(number_of_machines=ENVIRONMENT.numOfMachines, cam_num=camera_num)
+
+    cap = cv2.VideoCapture(camera_num)          # 카메라 읽어오기
+    yolo_net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")      # yolo model 생성
 
     ret, frame = cap.read()
-    roi = []
-    is_there_gpu = cv2.cuda.getCudaEnabledDeviceCount()
-    while True:
-        cv2.imwrite('output' + process_title + '.jpg', frame)
-        src = cv2.imread('output' + process_title + '.jpg', cv2.IMREAD_COLOR)
-        for i in range(ENVIRONMENT.numOfMachines):
-            roi.append(cv2.selectROI(src))
-            a, b, c, d = roi[-1]
-            src = cv2.rectangle(src, (a, b), (a + c, b + d), (255, 0, 0), 3)
+    is_there_gpu = cv2.cuda.getCudaEnabledDeviceCount()     # CUDA를 사용할 수 있는 gpu 탐색. 없으면 0을 반환
 
-        break
-
-    cv2.destroyAllWindows()
-    # using gpu
+    # gpu를 사용할 지 하지 않을지 결정함
     if is_there_gpu > 0:
         yolo_net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
         yolo_net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 
+    # yolo model configuration
     with open("yolo.names", "r") as f:
         classes = [line.strip() for line in f.readlines()]
     layer_names = yolo_net.getLayerNames()
@@ -133,13 +94,15 @@ def get_bounding_box_of_human(camera_num: int, process_title: str = None, shared
             # TEST CODE
             for i in range(shape[0]):
                 temp_arr[i] = flags[i]
-
             sem.release()
 
         cv2.imshow(process_title, frame)
-        if cv2.waitKey(10) > 0:
+        if cv2.waitKey(1) > 0:
             break
 
 
 if __name__ == "__main__":
+    # UNIT TEST #
     get_bounding_box_of_human(0, '0')
+    print("end")
+    exit()
