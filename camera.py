@@ -4,7 +4,7 @@ import numpy as np
 import ENVIRONMENT
 from check_available import check_available, BoundingBox
 from get_machine_position import get_machine_position
-
+import time
 def get_bounding_box_of_human(camera_num: int, process_title: str = None, shared: str = None,
                               shape=None, datatype=None, sem: Semaphore = None):
     # 기구의 위치 설정하는 모듈
@@ -26,13 +26,15 @@ def get_bounding_box_of_human(camera_num: int, process_title: str = None, shared
         classes = [line.strip() for line in f.readlines()]
     layer_names = yolo_net.getLayerNames()
     output_layers = [layer_names[i[0] - 1] for i in yolo_net.getUnconnectedOutLayers()]
+    if is_there_gpu:
+        gpu_frame = cv2.cuda_GpuMat()
 
     while True:
+        prev_time = time.time()
         flags = {}
         ret, frame = cap.read()
         # using gpu
         if is_there_gpu:
-            gpu_frame = cv2.cuda_GpuMat()
             gpu_frame.upload(frame)
 
         h, w, c = frame.shape
@@ -77,15 +79,18 @@ def get_bounding_box_of_human(camera_num: int, process_title: str = None, shared
                         flag_m = True
             if flag_m:
                 cv2.rectangle(frame, (tx, ty), (tx + tw, ty + th), (0, 0, 255), 5)
+                cv2.putText(frame, str(seq)+" of machine", (tx + 10, ty + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
                 flags[seq] = True
             else:
                 cv2.rectangle(frame, (tx, ty), (tx + tw, ty + th), (0, 255, 0), 5)
+                cv2.putText(frame, str(seq) + " of machine", (tx + 10, ty + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
                 flags[seq] = False
 
-        for x in roi:
+        for seq, x in enumerate(roi):
             tx, ty, tw, th = x
             if len(list_of_boxes) == 0:
                 cv2.rectangle(frame, (tx, ty), (tx + tw, ty + th), (255, 255, 0), 5)
+                cv2.putText(frame, str(seq) + " of machine", (tx + 10, ty + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
 
         if __name__ != "__main__":
             sem.acquire()
@@ -95,7 +100,8 @@ def get_bounding_box_of_human(camera_num: int, process_title: str = None, shared
             for i in range(shape[0]):
                 temp_arr[i] = flags[i]
             sem.release()
-
+        cur_time = '%.5f' % (time.time() - prev_time)
+        cv2.putText(frame, cur_time, (10, 10), cv2.FONT_ITALIC, 0.3, (0, 0, 255))
         cv2.imshow(process_title, frame)
         if cv2.waitKey(1) > 0:
             break

@@ -11,8 +11,8 @@ class EventHandler:
         def set_end_point(self, x, y):
             self.x2, self.y2 = x, y
 
-        def starting_point(self):
-            return self.x1, self.y1
+        def starting_point(self, w=0, h=0):
+            return self.x1+w, self.y1+h
 
         def end_point(self):
             return self.x2, self.y2
@@ -27,7 +27,7 @@ class EventHandler:
         self.is_drawing = True
         self.x0, self.y0 = x, y
         self.current.set_starting_point(x, y)
-        self.current.set_end_point(x,y)
+        self.current.set_end_point(x, y)
 
     def mouse_move(self, x, y):
         if self.is_drawing:
@@ -38,13 +38,15 @@ class EventHandler:
         self.list_of_square.append(self.Square(self.x0, self.y0, x, y))
 
     def result(self):
-        return [(x.x1, x.y1, abs(x.x2-x.x1), abs(x.y2-x.y1)) for x in self.list_of_square]
+        return [(x.x1, x.y1, abs(x.x2 - x.x1), abs(x.y2 - x.y1)) for x in self.list_of_square]
 
     def running(self):
         while True:
             ret, self.frame = self.cap.read()
-            for square in self.list_of_square:
+            for seq, square in enumerate(self.list_of_square):
                 cv2.rectangle(self.frame, square.starting_point(), square.end_point(), (255, 255, 0), 2)
+                cv2.putText(self.frame, str(seq) + " of machine", square.starting_point(10, 20), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5, (255, 0, 0), 1)
             if self.is_drawing:
                 cv2.rectangle(self.frame, self.current.starting_point(), self.current.end_point(), (255, 0, 0), 2)
             cv2.imshow(self.window_name, self.frame)
@@ -60,4 +62,3 @@ class EventHandler:
             self.running()
             if len(self.list_of_square) == number_of_machines:
                 break
-
