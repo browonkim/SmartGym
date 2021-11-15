@@ -16,6 +16,7 @@ def mouse_handler(event, x, y, flags, param):
 def get_machine_position(number_of_machines: int, cam_num: int):
     global event_var
     cap = cv2.VideoCapture(cam_num, cv2.CAP_DSHOW)
+    assert cap.isOpened(), "니 카메라 꺼져있음!!!"
     w_name = 'set positions of machines'
     cv2.namedWindow(w_name)
     event_var = EventHandler(win_name=w_name, cap=cap)
